@@ -1,0 +1,127 @@
+---
+title: "Difference in Differences - R Notebook"
+output: html_notebook
+---
+
+
+Clean the the R environment.
+```{r}
+rm(list = ls()) # remove all objects in our R environment
+```
+
+Getting sample data.
+
+```{r}
+did_data <- read.csv(file = 'DiD_data.csv')
+head(did_data)
+```
+
+```{r}
+# no need to run this if read.csv() works on your computer
+#install.packages("readxl") # if you haven't installed this package before
+library("readxl")
+ab_data <- read_excel(file.choose()) #open the file cookie_cats.xlsx using the menu
+head(ab_data)
+```
+
+
+*** Simple Treatment Effect Estimation using DiD ***
+Create a dummy variable to indicate the weeks following the treatment launch (i.e., week 53). In this case, weeks before 53 will have a value of 0 and 53+ a 1. If you already have this skip this step.
+
+```{r}
+did_data$after = ifelse(did_data$Week >= 53, 1, 0)
+```
+
+Create a dummy variable to identify the group exposed to the treatment. In this
+example, it is the own brand.
+
+```{r}
+did_data$treated = ifelse(did_data$Brand == "Own", 1, 0)
+```
+
+
+```{r}
+# Compute for data points for DiD estimation
+# Remember: treatment effect = (difference in sales for own brand post-pre) - (difference in sales for competitor post-pre)
+
+# Average sales for the own brand in the post-treatment period
+sal_own_af = sapply(subset(did_data, after ==1 & treated == 1, select = Sales), mean)
+sal_own_af
+```
+
+```{r}
+# Average sales for the own brand in the pre-treatment period
+sal_own_bef = sapply(subset(did_data, after ==0 & treated == 1, select = Sales), mean)
+sal_own_bef
+```
+```{r}
+# Difference in sales for the own brand post-pre
+
+sal_own_dif = sal_own_af-sal_own_bef
+sal_own_dif
+```
+
+
+```{r}
+# Average sales for the competitor in the post-treatment period
+sal_comp_af = sapply(subset(did_data, after ==1 & treated == 0, select = Sales), mean)
+sal_comp_af
+```
+
+```{r}
+# Average sales for the competitor in the pre-treatment period
+sal_comp_bef = sapply(subset(did_data, after ==0 & treated == 0, select = Sales), mean)
+sal_comp_bef
+```
+```{r}
+# Difference in sales for the competitor post-pre
+
+sal_comp_dif = sal_comp_af-sal_comp_bef
+sal_comp_dif
+```
+
+```{r}
+# Estimate the treatment effect using DiT
+treatment_effect = sal_own_dif - sal_comp_dif
+treatment_effect
+
+```
+
+*** Treatment Effect Estimation Using DiD and Linear Regression  ***
+
+
+Create a dummy variable to indicate the weeks following the treatment launch (i.e., week 53). In this case, weeks before 53 will have a value of 0 and 53+ a 1. If you already have this skip this step.
+
+```{r}
+did_data$after = ifelse(did_data$Week >= 53, 1, 0)
+```
+
+Create a dummy variable to identify the group exposed to the treatment. In this
+example, it is the own brand.
+
+```{r}
+did_data$treated = ifelse(did_data$Brand == "Own", 1, 0)
+```
+
+Create an interaction between time and treated. We will call this ‘DiD’ interaction.
+
+```{r}
+did_data$did_int = did_data$after * did_data$treated
+```
+
+Estimating the treatment effect using the DiD estimator:
+
+```{r}
+did_reg = lm(Sales ~ treated + after + did_int, data = did_data)
+summary(did_reg)
+```
+
+The coefficient for ‘did_int’ is the difference-in-differences
+estimator. It is positive, but insignificant at the 5% level.
+
+
+
+
+
+
+
